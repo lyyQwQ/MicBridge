@@ -1,155 +1,202 @@
-# MicBridge
+# MicBridge 麦桥
 
 <img src="assets/brand/micbridge.svg" alt="MicBridge 图标" width="96">
 
-## 功能
-
-把手机上的麦克风（内置、蓝牙耳机或智能眼镜如 Ray-Ban Meta）通过局域网用作 Windows 麦克风，适用于任何从 CABLE Output 录音的软件。Flutter 是 Android 与 Windows 的唯一界面；Android 的 Kotlin 服务按需采集音频，Windows 的无窗口 .NET 宿主接收音频并写入 VB-Cable。
-
-- 手机内置麦克风、蓝牙耳机、智能眼镜（如 Ray-Ban Meta）均可作为输入；具体可用设备以 Android 暴露的麦克风和通话路由为准。
-- 任意从 **CABLE Output** 录音的软件均可使用，Typeless 只是其中一个例子。
-- 支持局域网发现、首次审批与记住设备、自动重连，以及按录音活动自动启停或手动采集。
+把手机能用的麦克风——手机内置麦克风、蓝牙耳机，或 Ray-Ban Meta 这类智能眼镜——通过局域网变成 Windows 的麦克风。**只在电脑真正录音时打开，录完自动关闭。**
 
 <p>
-  <img src="docs/images/desktop.png" alt="Windows 界面：已连接，未采集" width="360">
-  <img src="docs/images/android.png" alt="Android 界面：已连接，未采集" width="270">
+  <img src="docs/images/desktop.png" alt="Windows 端：已连接，未采集" width="360">
+  <img src="docs/images/android.png" alt="Android 端：已连接，未采集" width="270">
 </p>
+
+## 为什么做这个
+
+我想在 Windows 上用 Ray-Ban Meta 眼镜的麦克风做语音输入（用的是 Typeless）。眼镜平时连着手机，要用它的麦克风，手机必须和眼镜建立一条蓝牙**通话链路**。这条链路一直开着很耗眼镜电量；每次听写前后都去手机上手动开关，又太麻烦。
+
+MicBridge 让电脑来决定什么时候需要麦克风：
+
+- Typeless 开始听写时，手机自动打开眼镜的通话链路，声音实时传到电脑；
+- Typeless 结束听写后，空闲 3 秒自动挂断，眼镜回到平常状态。
+
+整个过程不用碰手机。除了眼镜，手机内置麦克风和普通蓝牙耳机同样可用；电脑端也不限于 Typeless，任何从 VB-Cable 录音的软件都能触发。
 
 ## 工作原理
 
+Windows 无法直接把手机当成麦克风，所以借助虚拟声卡 [VB-Cable](https://vb-audio.com/Cable/)：MicBridge 把手机传来的声音写进 **CABLE Input**，录音软件把 **CABLE Output** 当作麦克风使用。同时，Windows 端持续观察 CABLE Output 上是否有程序在录音，以此作为开关信号。
+
 ```mermaid
 sequenceDiagram
-    participant T as 录音软件
-    participant W as Windows 核心
-    participant A as Android 服务
-    participant R as 手机所选麦克风
-    participant V as VB-Cable
-    T->>V: 打开 CABLE Output 录音会话
-    W->>W: 检测 Active 录音会话
-    W->>A: START
-    A->>R: 建立采集路由（蓝牙按需使用 SCO）
-    R->>A: 麦克风音频
-    A->>W: 48 kHz mono PCM16
-    W->>V: 写入 CABLE Input
-    V->>T: CABLE Output 音频
-    T->>V: 结束录音
-    W->>A: 连续空闲 3 秒后 STOP
-    A->>R: 释放录音与路由
+    participant T as Typeless 等录音软件
+    participant W as MicBridge（Windows）
+    participant P as MicBridge（手机）
+    participant G as 眼镜 / 耳机 / 手机麦克风
+    T->>W: 开始从 CABLE Output 录音
+    W->>P: 开始采集
+    P->>G: 打开蓝牙通话链路
+    G-->>P: 麦克风音频
+    P-->>W: 局域网实时传输
+    W-->>T: 经 VB-Cable 送达
+    T->>W: 停止录音
+    Note over W: 连续空闲 3 秒
+    W->>P: 停止采集
+    P->>G: 挂断通话链路
 ```
 
-Windows Flutter 通过 stdin/stdout JSON 行协议启动和控制 `desktop/src/MicBridge.App`；宿主内的 `CoreController` 管理网络与音频。两端都监听 TCP `17891`，默认同时传控制和音频；使用 mDNS 与 UDP `17893` 发现对端。设置 `MICBRIDGE_AUDIO_TRANSPORT=udp` 可启用实验性 UDP `17892` 音频；需要对端支持，否则使用 TCP。
+## 准备工作
 
-帧格式、认证、发现和 IPC 细节见 [协议说明](protocol/README.md)。
+**Windows**
 
-## 前置条件
+- 安装 [VB-Cable](https://vb-audio.com/Cable/)。MicBridge 不附带虚拟声卡驱动。
+- 在 Typeless（或其他录音软件）里把麦克风选为 **CABLE Output**。
+- 把家里的网络设为**专用网络**，并允许 MicBridge 通过防火墙。网络为「公用」时，Windows 会挡住手机的连接，这是连不上的最常见原因。不要靠关闭防火墙来解决。
 
-- Windows 安装 [VB-Cable](https://vb-audio.com/Cable/)；本项目不附带虚拟声卡驱动。
-- 在录音软件（如 Typeless）中选择 **CABLE Output**；程序把音频写入 **CABLE Input**。
-- 使用手机内置麦克风，或先通过系统蓝牙设置连接耳机／智能眼镜；授予应用请求的麦克风、附近设备及通知权限。
-- 两端处于同一可信局域网。Windows 将该可信网络设为 **专用网络（Private）**，并允许应用通过该网络的防火墙；不要通过关闭防火墙解决连接问题。默认需要 TCP `17891` 和发现 UDP `17893`；mDNS 使用 UDP `5353`，实验性 UDP 音频另需 UDP `17892`。网络隔离或禁止广播／组播可能阻止自动发现，此时可手动连接。
-- Android **8.0 / API 26** 或更高版本。使用蓝牙设备时须先在系统设置完成连接；能播放蓝牙音频不代表该设备向 Android 提供可用的麦克风路由。
-- 开发环境：Flutter（Dart SDK 满足 `^3.13.5`）、Android SDK、JDK 17+、.NET 10 SDK，以及 Flutter Windows 桌面构建工具链。编译和目标 Android SDK 跟随 Flutter 配置。
+**手机**
 
-## 构建与安装
+- Android 8.0 或更高版本。
+- 使用眼镜或耳机时，先在系统蓝牙设置里连好。注意：能听音乐不代表能当麦克风，设备必须向 Android 提供通话麦克风。
+- 第一次打开 App 时，允许麦克风、附近设备和通知权限。
 
-在仓库根目录使用 PowerShell：
+**网络**
+
+- 手机和电脑在同一个可信局域网内。
+- 需要放行 TCP `17891`（控制和音频）和 UDP `17893`（设备发现）；mDNS 使用 UDP `5353`。
+- 如果路由器隔离了设备、导致无法自动发现，可以手动输入电脑地址。
+
+## 安装
+
+目前不提供预编译版本，需要自行构建，见[开发](#开发)。
+
+## 使用
+
+### 第一次配对
+
+1. 在电脑上打开 MicBridge。
+2. 在手机上打开 MicBridge，点击列表中的电脑。如果找不到，展开 **手动连接与诊断**，填入电脑的局域网地址和端口 `17891`，点击 **连接此地址**。
+3. 电脑端会弹出配对请求，任务栏图标同时闪烁提醒。在 60 秒内点击允许。
+
+第一次配对只能由手机发起。配对后两端会记住对方，之后只要两边的应用都在运行、网络可达，就会自动重连。
+
+### 日常使用
+
+1. 在手机端点击 **麦克风**，选择输入设备。默认是 **跟随系统**，也可以固定为眼镜、耳机或手机内置麦克风。固定的设备没连上时，会提示并暂时跟随系统。
+2. 两端都显示 **已连接，未采集** 后，正常使用 Typeless 即可：听写开始时自动采集，结束 3 秒后自动停止。
+3. 也可以点击 **开始采集** / **停止采集** 手动控制。手动开始的采集不会被自动停止。
+
+> 蓝牙通话链路的建立需要一点时间，最开头的字可能录不到。看到 **正在采集** 再开口最稳妥。
+
+### 界面状态
+
+| 状态 | 主按钮 |
+| --- | --- |
+| 未连接 | Windows：**连接手机**；Android：**连接电脑**。也可以直接点击发现的设备，或手动连接 |
+| 收到配对请求 / 等待电脑批准 | **等待配对批准**（不可点击），请在电脑端的弹窗里处理 |
+| 已连接，未采集 | **开始采集** |
+| 正在启动采集 / 正在采集 | **停止采集** |
+| 正在停止采集 | **正在停止采集**（不可点击） |
+| 需要处理 | 连接还在时为 **重试采集**，已断开时为 **重新连接** |
+
+两端右上角都有 **刷新**；Android 的 **更多 → 权限检查** 可以查看麦克风、蓝牙和通知权限。设备行上的 **设备操作** 菜单里有 **忘记设备**（Windows）/ **忘记电脑**（Android）。
+
+### 设备名称
+
+电脑显示为 Windows 计算机名，手机显示为系统设置里的「设备名称」（读不到时用机型）。名称只用于显示，不参与身份认证。改名后不需要重新配对，下次认证成功时会自动更新。
+
+## 自动开关规则
+
+- **开始**：任何程序在 CABLE Output 上开始录音，且手机已连接、处于空闲。
+- **停止**：所有录音连续空闲 3 秒。这期间重新开始录音会取消停止，所以连续听写时的短暂停顿不会让蓝牙链路反复挂断和重建。
+- 录音状态有 1 秒防抖，和 3 秒的等待同时起算，不会叠加。
+- 手动开始的采集只能手动停止。
+- 采集失败时连接不会断开。同一次持续的录音不会反复自动重试；下一次录音开始，或点击 **重试采集** 时会再试。
+- 判断依据是「是否有程序在录音」，而不是软件界面上的按钮。如果某个软件一直占着麦克风不释放，采集就不会自动停止。
+
+## 延迟
+
+- Windows 播放缓冲为 80 ms × 2；积压超过 200 ms 时丢弃旧音频，追回到约 80 ms。
+- 手机端每次读取约 43 ms 的音频。
+- VB-Cable 缓冲、网络传输和蓝牙链路也会带来额外延迟。
+
+以上是缓冲配置，不是实测的端到端延迟。
+
+## 安全与隐私
+
+- 不录制、不保存任何音频；日志里不记录音频和密钥。
+- 新设备首次连接时，必须在电脑上手动批准。只能信任一部手机。
+- 配对时，长期密钥会在局域网内**以明文传输一次**，之后用 HMAC-SHA256 双向认证身份。认证不加密音频和控制消息。因此请只在家里这类可信网络中使用：不要在公共 Wi-Fi 上使用，也不要把端口暴露到互联网。
+- 密钥的保存方式：
+  - Windows：用当前用户的 DPAPI 加密，存放在 `%LOCALAPPDATA%\MicBridge\device-trust.dat`；
+  - Android：用 Keystore 的 AES-GCM 密钥加密，不参与系统备份和换机迁移。
+- 局域网发现到的名称和地址只是显示信息，不代表对方的真实身份。
+
+## 常见问题
+
+**手机找不到电脑或连不上。** 按顺序检查：
+1. 两端是否在同一个局域网；
+2. Windows 网络是否为「专用」，防火墙是否放行；
+3. 若自动发现被路由器挡住，就手动输入电脑地址。
+
+**电脑没有声音。** 按顺序检查：
+1. 录音软件是否选择了 CABLE Output；
+2. 两端是否显示 **正在采集**；
+3. 日志里若出现 `VB-Cable output device not found`，说明 VB-Cable 没有装好。
+
+**录到的是手机麦克风而不是眼镜。** 按顺序检查：
+1. 眼镜是否已在系统蓝牙中连接；
+2. 手机端麦克风选择是否正确。若显示「已保存的设备未连接，暂按系统默认」，说明当前用的是系统默认输入。
+
+**配对后认证失败。** 一般是只有一端删除了配对记录。在两端都点忘记，再重新配对。
+
+**锁屏或后台不能录音。** 先在手机前台完成授权和连接。各厂商的省电策略可能限制后台录音，需要在系统设置中为 MicBridge 放开限制。
+
+**日志位置。**
+- Windows：`%LOCALAPPDATA%\MicBridge\logs\core.log`；
+- Android：logcat 标签 `MicBridgeControl`。
+
+## 已知限制
+
+- 只支持一部手机对一台电脑，且只能在可信局域网内使用；没有云端、账号或中继服务。
+- 自动重连要求两端应用都在运行；不保证开机自启，也不保证被系统强制停止后能自动恢复。
+- 能否通过蓝牙录音、建立链路要多久，取决于具体的手机和外设；不保证所有耳机或眼镜都能用。
+- 设置 `MICBRIDGE_AUDIO_TRANSPORT=udp` 可以改用 UDP `17892` 传输音频，这是实验功能，默认使用 TCP。
+
+## 开发
+
+两端界面都用 Flutter 编写：
+
+- Android 端由 Kotlin 前台服务负责蓝牙路由和音频采集；
+- Windows 端由一个无窗口的 .NET 后台进程（`core/MicBridge.App.exe`）负责网络、认证、自动开关，以及向 VB-Cable 写入音频，界面通过 stdin/stdout 的 JSON 行协议与它通信。
+
+帧格式、认证、发现和 IPC 的细节见[协议说明](protocol/README.md)，开发约定见 [AGENTS.md](AGENTS.md)。
+
+### 环境
+
+- Flutter（Dart SDK `^3.13.5`）及 Windows 桌面构建工具链
+- Android SDK、JDK 17+
+- .NET 10 SDK
+
+### 构建
+
+在仓库根目录执行（PowerShell）：
 
 ```powershell
 flutter pub get
 flutter build apk --debug
 adb install build\app\outputs\flutter-apk\app-debug.apk
-flutter run -d windows
-```
-
-Windows 发布构建前先退出正在运行的桌面端：
-
-```powershell
 flutter build windows --release
 ```
 
-Windows CMake 会调用 `dotnet publish`，将无窗口宿主 `core/MicBridge.App.exe` 放到 `micbridge.exe` 旁。发布使用 `--no-self-contained`，运行环境需要 .NET 10；分发时保留完整构建目录。构建不会清理 `core/` 中的旧文件。可用 `MICBRIDGE_CORE_PATH` 指定宿主可执行文件路径。
+- **Windows 构建**：
+  - 构建前先退出正在运行的电脑端。
+  - 构建时会调用 `dotnet publish`，把 `core/MicBridge.App.exe` 放在 `micbridge.exe` 旁边。运行环境需要 .NET 10，分发时请保留整个构建目录。
+  - 构建不会清理 `core/` 里的旧文件。
+- **后台进程路径**：可以用 `MICBRIDGE_CORE_PATH` 指定。
+- **发布 APK**：执行 `flutter build apk --release`。签名信息通过以下环境变量提供，缺少时构建会直接失败，不会退回调试签名：
+  - `MICBRIDGE_RELEASE_KEYSTORE`
+  - `MICBRIDGE_RELEASE_STORE_PASSWORD`
+  - `MICBRIDGE_RELEASE_KEY_ALIAS`
+  - `MICBRIDGE_RELEASE_KEY_PASSWORD`
 
-发布 APK 使用 `flutter build apk --release`，签名值通过 `MICBRIDGE_RELEASE_KEYSTORE`、`MICBRIDGE_RELEASE_STORE_PASSWORD`、`MICBRIDGE_RELEASE_KEY_ALIAS`、`MICBRIDGE_RELEASE_KEY_PASSWORD` 环境变量提供；缺少签名配置会失败，不会退回调试签名。
-
-开发验证命令及操作约束见 [AGENTS.md](AGENTS.md)。
-
-更名升级时先卸载旧 Android App，再安装包名为 `io.github.lyyqwq.micbridge` 的新版；两端同时更新后重新配对。新版 Windows 使用 `%LOCALAPPDATA%\MicBridge`，不迁移或删除旧版本的数据目录。分发新版构建时使用 `micbridge.exe` 和 `core/MicBridge.App.exe`。
-
-## 首次配对与日常使用
-
-1. 打开 Windows 桌面端；在手机前台打开应用并授予权限。
-2. **首次配对从手机发起**：点击发现的电脑，或展开 **手动连接与诊断**，输入电脑局域网地址与控制端口 `17891`，点击 **连接此地址**。已配对后，双方都可发现和连接已记住的对端；Windows 不能主动发起首次配对。
-3. Windows 弹出首次连接审批，在默认 **60 秒** 内仅允许自己的手机。拒绝、关闭或超时都不会建立信任。
-4. 在 Android 点击 **麦克风** 打开 **选择麦克风** 面板，默认是 **跟随系统**。需要固定使用手机内置、蓝牙耳机或智能眼镜时选择对应输入；已保存设备未连接时会提示并暂时跟随系统。Windows 的 **音频输出** 行显示 VB-Cable 状态，麦克风在手机端选择。
-5. 两端显示 **已连接，未采集** 后，在任意录音软件中选择 **CABLE Output** 并开始录音，即可触发自动采集；也可点击 **开始采集**。看到 **正在采集** 后再说话。手动开始需点击 **停止采集** 释放麦克风。
-
-已记住设备在应用／服务仍运行且网络可达时可自动重连。只有一个可信手机槽位。Windows 的 **忘记设备** 和 Android 的 **忘记电脑** 只清除本端记录；如遇 `repair_required` 或单边忘记造成的身份不一致，两端都忘记后重新连接并允许。
-
-### 按钮、状态与菜单
-
-| 当前状态 | 主按钮与行为 |
-| --- | --- |
-| 未连接 | Windows 为 **连接手机**，Android 为 **连接电脑**；可直接点击发现条目，或手动连接。 |
-| 收到配对请求 / 等待电脑批准 | 主按钮为 **等待配对批准**，不可点击；在 Windows 弹窗中处理。 |
-| 已连接，未采集 | **开始采集**。 |
-| 正在启动采集 / 正在采集 | **停止采集**；启动过程中也可停止。 |
-| 正在停止采集 | **正在停止采集**，不可重复点击。 |
-| 需要处理 | 连接仍在时为 **重试采集**，已断开时为 **重新连接**。 |
-
-命令执行期间相关按钮会暂时禁用。两端右上角均有 **刷新**；Android 额外提供 **更多 → 权限检查**（麦克风、蓝牙和通知）。设备摘要行的 **设备操作** 菜单提供 Windows **忘记设备** / Android **忘记电脑**，仅在有可信记录或需要修复配对时出现。
-
-## 设备名称
-
-Windows 显示 **Windows 计算机名**（`Environment.MachineName`），空或空白时回退为 `MicBridge`；Android 显示 **系统设备名称**（`Settings.Global.DEVICE_NAME`），空或空白时依次回退为机型（`Build.MODEL`）、`Android`。
-
-名称仅用于发现与界面显示，不参与身份匹配或 HMAC 认证。已配对设备重连并认证成功后，才以合法、非空的新名称刷新保存的名称；未认证或认证失败的连接不能刷新名称，名称更新不改变设备 ID、配对 ID 或密钥。mDNS 实例标签最多 63 个 UTF-8 字节，HELLO 名称最多 256 个 UTF-16 代码单元且不含控制字符，详见 [协议中的设备名称约定](protocol/README.md#连接与发现)。
-
-## 自动采集规则
-
-- Windows 检测 `CABLE Output` 上任意外部进程的 Active 录音会话。
-- 手机已连接且空闲时，录音活动触发 `START`。
-- 自动采集在所有录音会话连续空闲 **3 秒** 后发送 `STOP`。期间恢复活动会取消停止，下一次空闲重新计时；短暂停顿保留音频路由。
-- `listenerActive` 的空闲防抖为 **1 秒**，与 3 秒停止延迟独立；两者从同一次空闲开始计时，不是先等 1 秒再等 3 秒。
-- 手动开始的采集由手动控制，不会被自动策略停止。
-- 采集失败后保留已认证控制连接，可手动重试；持续 Active 的同一次录音不会不断自动重试，需经过空闲去抖后的下一次录音活动触发。
-
-## 延迟说明
-
-Windows `NAudioSink` 的 WaveOut 目标缓冲为 **80 ms**，使用两个缓冲块；内部积压超过 **200 ms** 时丢弃旧音频追赶到约 **80 ms**。这些是缓冲配置，不是端到端延迟保证。
-
-Android 使用 4096 字节阻塞读块，按 48 kHz、单声道、16-bit 换算，满块约 **43 ms** 音频；实际读取与调度时间取决于设备。
-
-VB-Cable 自身缓冲、Android 读块、局域网传输以及蓝牙设备冷启动 SCO 建链还会增加延迟。自动采集不能保证保留首字；先确认采集状态再说话，并在实际麦克风设备和录音软件上检查首字和连续录音。3 秒保持只减少短暂停顿后的重新建链。
-
-## 排障
-
-- **找不到电脑或无法连接**：先检查同一局域网、Windows 网络类别及防火墙。Public 配置可能阻止入站；仅对可信家庭网络改为 Private。允许 TCP `17891`、发现 UDP `17893`；启用 UDP 音频时再允许 UDP `17892`。发现失败可手动输入电脑地址。
-- **没有声音**：确认录音软件选择 CABLE Output、系统有 CABLE Input，并确认手机已连接且采集开始。核心报 `VB-Cable output device not found` 时检查 VB-Cable 安装。
-- **输入设备不可用**：确认权限、蓝牙输入设备连接及麦克风选择。已保存设备断开时，界面可能显示 **已保存的设备未连接，暂按系统默认**；此时音源可能是手机麦克风。
-- **配对后仍无法认证**：若只有一端保存或忘记了设备，两端均忘记再配对；不要依赖重试覆盖旧信任。
-- **后台或锁屏无法录音**：从手机前台完成权限和连接；系统后台麦克风与厂商省电限制需要真机验证。
-- **查看诊断**：核心日志为 `%LOCALAPPDATA%\MicBridge\logs\core.log`；手机 logcat 使用 `MicBridgeControl` 标签。日志用于状态和错误诊断。
-
-## 配对安全与隐私
-
-应用不记录或持久化 PCM 音频。Windows 用当前用户 DPAPI 保护 `%LOCALAPPDATA%\MicBridge\device-trust.dat`；Android 用 Keystore 的 AES-GCM 密钥保护 SharedPreferences `micbridge_device_trust` 中的信任记录，备份与设备转移排除该信任文件。
-
-每次新配对首次批准时，长期密钥会在可信家庭局域网内通过 **明文 TCP 下发一次**；已记住设备重连不再下发密钥。之后使用 **HMAC-SHA256 双向认证**；认证不加密控制消息或音频，也不提供后续数据的密码学完整性保护。能监听首次交换的人可以取得密钥，当前方案不抵御局域网主动中间人。不要用于公共或不可信网络，不要向互联网开放端口。
-
-发现广播不含密钥或认证材料；发现到的设备名和地址不是可信身份。密钥、认证证明和 PCM 不进入日志。
-
-## 已知限制
-
-- 仅支持 **单手机、单可信对端**，使用范围限于可信 LAN；不提供云服务、账号体系、互联网中继或自定义虚拟声卡驱动。
-- 自动重连要求 Windows 核心与已启动的 Android 服务仍在运行；不保证开机自启、强行停止后的唤醒或绕过后台权限限制。
-- UDP 音频是实验功能，网络不稳定时优先使用默认 TCP。
-- 构建和单元测试通过不能证明真机蓝牙路由、锁屏录音或 VB-Cable 音频可用。
-- 自动启停依据 CABLE Output 的 Active 录音会话，而非某个软件的按钮；若软件一直保持录音会话活跃，自动采集不会因界面结束录音而停止。
-- 蓝牙通话路由、设备兼容性及启动延迟取决于 Android 与外设；不能保证所有耳机／智能眼镜可用或自动保留首字。
-
-## 测试
-
-以下为开发者可执行的验证命令，在仓库根目录使用 PowerShell；命令列出不代表本次已运行或通过：
+### 测试
 
 ```powershell
 flutter analyze
@@ -158,20 +205,22 @@ dotnet test desktop/tests/MicBridge.Core.Tests/MicBridge.Core.Tests.csproj -c Re
 ./android/protocol-check/verify.ps1 -JavaExecutable "<jdk-java-executable>"
 ```
 
-`<jdk-java-executable>` 替换为 JDK 17+ 的 `bin/java.exe` 路径。协议检查依赖脚本指定版本的 Gradle 缓存 JAR，先完成 Android 构建准备缓存。.NET 测试包含真实网络用例，需要预留数分钟。
+- `<jdk-java-executable>` 填 JDK 17+ 的 `bin/java.exe` 路径。协议检查依赖 Gradle 缓存，请先完成一次 Android 构建。
+- .NET 测试包含真实网络用例，需要几分钟。
+- 单元测试不能代替真机验证：蓝牙路由、首字、连续录音、锁屏和后台表现都需要在实际设备上确认。
 
-Flutter 测试覆盖界面、状态竞争及平台桥接；.NET 测试覆盖自动采集、音频积压、信任、发现、网络与宿主 IPC；Kotlin 检查覆盖认证证明、设备名称、发现及候选失败策略。实际设备仍需验证首次审批、重连、双端忘记、首字、连续录音、停止释放、断连、后台和锁屏。分别检查手机内置与实际使用的蓝牙输入，以及目标录音软件的 CABLE Output 行为；不要用单元测试结果代替真机音频验证。
+### 目录
 
-## 仓库结构
-
-- `lib/`、`test/`：双端 Flutter 界面、平台桥接与界面测试。
-- `android/app/src/main/kotlin/io/github/lyyqwq/micbridge/`：Android 服务、设备选择、采集、信任与协议；包名为 `io.github.lyyqwq.micbridge`。
-- `desktop/src/MicBridge.App/`：无窗口宿主、Flutter IPC 与日志入口。
-- `desktop/src/MicBridge.Core/`：连接、认证、自动采集策略与 VB-Cable 输出。
-- `desktop/tests/MicBridge.Core.Tests/`：核心与宿主测试。
-- `android/protocol-check/`、`protocol/`：Kotlin 协议验证与共享协议说明。
-- `windows/`：Flutter Windows runner 与 .NET 宿主打包配置。
-- `.trellis/spec/`：分层开发规范。
+| 路径 | 内容 |
+| --- | --- |
+| `lib/`、`test/` | Flutter 界面、平台桥接和测试 |
+| `android/app/src/main/kotlin/io/github/lyyqwq/micbridge/` | Android 服务、采集、设备选择、信任与协议 |
+| `desktop/src/MicBridge.App/` | Windows 后台进程入口、IPC 与日志 |
+| `desktop/src/MicBridge.Core/` | 连接、认证、自动开关策略与 VB-Cable 输出 |
+| `desktop/tests/MicBridge.Core.Tests/` | .NET 测试 |
+| `android/protocol-check/`、`protocol/` | Kotlin 协议校验与协议说明 |
+| `windows/` | Flutter Windows runner 与后台进程打包配置 |
+| `assets/brand/` | 图标 SVG 源文件 |
 
 ## License
 
