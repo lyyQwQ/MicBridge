@@ -1,0 +1,14 @@
+{"file":"AGENTS.md","reason":"现行架构、改名后路径、硬约束与验证命令"}
+{"file":".trellis/spec/backend/error-handling.md","reason":"采集清理、连接代际、双向认证及失败恢复契约"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Flutter 唯一界面、平台状态、配对与输入选择契约"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"核对 Flutter、IPC、原生服务与协议边界"}
+{"file":"protocol/README.md","reason":"现行控制帧、音频传输及设备信任协议"}
+{"file":".trellis/tasks/10-27-rayban-voice-mic/prd.md","reason":"原始 R1–R6 与验收范围；旧 Go、服务名和快捷键描述结合现行规范核对"}
+{"file":"android/app/src/main/kotlin/io/github/lyyqwq/micbridge/audio/AudioCaptureController.kt","reason":"改名后采集实现：按需创建录音器、PCM 发送和停止清理"}
+{"file":"android/app/src/main/kotlin/io/github/lyyqwq/micbridge/audio/BluetoothRouteManager.kt","reason":"改名后输入选择、通信音频路由及释放实现"}
+{"file":"android/app/src/main/kotlin/io/github/lyyqwq/micbridge/audio/MicrophoneService.kt","reason":"前台服务生命周期、采集命令与断连清理"}
+{"file":"android/app/src/main/kotlin/io/github/lyyqwq/micbridge/audio/ControlClient.kt","reason":"控制连接、重复命令与 TCP/UDP 音频协商"}
+{"file":"android/app/src/main/kotlin/io/github/lyyqwq/micbridge/discovery/LanDiscovery.kt","reason":"Android 局域网发现与端点更新"}
+{"file":"desktop/src/MicBridge.Core/Control/CoreController.cs","reason":"现行 .NET 核心连接、命令状态机与音频接收"}
+{"file":"desktop/src/MicBridge.Core/Audio/NaudioSink.cs","reason":"VB-Cable 输出、缓冲及音频资源生命周期"}
+{"file":"lib/platform_bridge.dart","reason":"Flutter 与 Android 通道及 Windows JSON 行 IPC 适配"}

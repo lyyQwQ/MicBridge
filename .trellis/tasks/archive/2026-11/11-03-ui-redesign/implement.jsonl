@@ -1,0 +1,9 @@
+{"file":"AGENTS.md","reason":"仓库硬约束、构建与实机操作要求"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"状态、配对、输入选择和平台接口契约"}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"现有展示组件规范；模板内容以代码核实"}
+{"file":".trellis/spec/frontend/index.md","reason":"前端规范入口"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Dart 与 Windows runner 边界检查"}
+{"file":".trellis/tasks/archive/2026-11/11-03-ui-redesign/research/ui-audit.md","reason":"审计问题 1–16、布局草图与证据限制"}
+{"file":".trellis/tasks/archive/2026-11/11-03-ui-redesign/design.md","reason":"文件切分、状态映射及 FlashWindowEx 接入依据"}
+{"file":".trellis/tasks/archive/2026-11/11-03-ui-redesign/prd.md","reason":"用户需求与不可改动范围"}
+{"file":".trellis/tasks/archive/2026-11/11-03-ui-redesign/implement.md","reason":"实施顺序、依赖与验证计划"}

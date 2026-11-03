@@ -1,0 +1,15 @@
+{"file":"AGENTS.md","reason":"现行架构、改名后路径、硬约束与验证命令"}
+{"file":".trellis/spec/backend/error-handling.md","reason":"采集清理、连接代际、双向认证及失败恢复契约"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Flutter 唯一界面、平台状态、配对与输入选择契约"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"核对 Flutter、IPC、原生服务与协议边界"}
+{"file":"protocol/README.md","reason":"现行控制帧、音频传输及设备信任协议"}
+{"file":".trellis/tasks/10-27-rayban-voice-mic/prd.md","reason":"逐项核对按需采集、释放、幂等、发现及音频验收；历史架构以当前实现核实"}
+{"file":"android/app/src/main/kotlin/io/github/lyyqwq/micbridge/audio/AudioCaptureController.kt","reason":"检查 STOP、断连及异常后的录音器清理，真机结果单独验证"}
+{"file":"android/app/src/main/kotlin/io/github/lyyqwq/micbridge/audio/BluetoothRouteManager.kt","reason":"检查路由释放与当前输入选择契约"}
+{"file":"desktop/src/MicBridge.Core/Control/CoreController.cs","reason":"检查未连接、重复命令、超时与失败状态"}
+{"file":"desktop/tests/MicBridge.Core.Tests/CoreControllerTests.cs","reason":"核心控制状态机回归入口"}
+{"file":"desktop/tests/MicBridge.Core.Tests/CoreControllerAudioTests.cs","reason":"音频传输与输出生命周期回归入口"}
+{"file":"desktop/tests/MicBridge.Core.Tests/MalformedNetworkTests.cs","reason":"畸形网络输入及错误隔离回归入口"}
+{"file":"test/windows_bridge_test.dart","reason":"Windows 平台桥接与 IPC 回归入口"}
+{"file":"test/state_races_test.dart","reason":"界面状态和异步错误竞态回归入口"}
+{"file":"android/protocol-check/verify.ps1","reason":"Android 协议验证命令入口；环境要求见 AGENTS.md"}

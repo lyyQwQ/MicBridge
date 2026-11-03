@@ -1,0 +1,17 @@
+{"file":"AGENTS.md","reason":"现行架构、改名后路径、硬约束与验证命令"}
+{"file":".trellis/spec/backend/error-handling.md","reason":"采集清理、连接代际、双向认证及失败恢复契约"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Flutter 唯一界面、平台状态、配对与输入选择契约"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"核对 Flutter、IPC、原生服务与协议边界"}
+{"file":"protocol/README.md","reason":"现行控制帧、音频传输及设备信任协议"}
+{"file":".trellis/tasks/archive/2026-11/11-02-auto-capture-device-trust/prd.md","reason":"R1 自动启停、R2 移除快捷键、R3 单设备信任需求；历史 1 秒停止描述需核对当前策略"}
+{"file":"desktop/src/MicBridge.Core/Control/AutoCapturePolicy.cs","reason":"当前停止延迟 3 秒、监听去抖 1 秒、手动所有权及失败重试策略"}
+{"file":"desktop/src/MicBridge.Core/Control/CableSessionMonitor.cs","reason":"CABLE Output 外部 Active 会话检测与端点恢复"}
+{"file":"desktop/src/MicBridge.Core/Control/CoreController.cs","reason":"自动与手动 START/STOP、连接状态及策略集成"}
+{"file":"desktop/src/MicBridge.Core/Control/CoreController.Trust.cs","reason":"首次审批、双向认证、可信连接仲裁与忘记设备"}
+{"file":"desktop/src/MicBridge.Core/Control/DeviceTrustStore.cs","reason":"Windows DPAPI 单槽信任持久化"}
+{"file":"android/app/src/main/kotlin/io/github/lyyqwq/micbridge/trust/DeviceTrustStore.kt","reason":"改名后 Android Keystore 信任持久化"}
+{"file":"android/app/src/main/kotlin/io/github/lyyqwq/micbridge/trust/TrustHandshake.kt","reason":"Android 首次配对与后续双向证明"}
+{"file":"android/app/src/main/kotlin/io/github/lyyqwq/micbridge/audio/ControlClient.kt","reason":"连接失败后 running 复位、认证与重连"}
+{"file":"desktop/src/MicBridge.App/LocalControlServer.cs","reason":"配对请求、审批、忘记及监听状态 IPC"}
+{"file":"lib/main.dart","reason":"首次允许提示、记住设备与手动采集交互"}
+{"file":"lib/platform_bridge.dart","reason":"配对事件、状态快照及跨平台命令接口"}

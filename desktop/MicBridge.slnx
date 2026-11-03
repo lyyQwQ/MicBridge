@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MicBridge.App/MicBridge.App.csproj" />
+    <Project Path="src/MicBridge.Core/MicBridge.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MicBridge.Core.Tests/MicBridge.Core.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,19 @@
+{"file":"AGENTS.md","reason":"现行架构、改名后路径、硬约束与验证命令"}
+{"file":".trellis/spec/backend/error-handling.md","reason":"采集清理、连接代际、双向认证及失败恢复契约"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Flutter 唯一界面、平台状态、配对与输入选择契约"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"核对 Flutter、IPC、原生服务与协议边界"}
+{"file":"protocol/README.md","reason":"现行控制帧、音频传输及设备信任协议"}
+{"file":".trellis/tasks/archive/2026-11/11-02-auto-capture-device-trust/prd.md","reason":"逐项核对 R1–R3 验收；区分历史停止时限与当前契约"}
+{"file":"desktop/src/MicBridge.Core/Control/AutoCapturePolicy.cs","reason":"核实 3 秒停止与 1 秒监听去抖独立，手动采集不被自动停止"}
+{"file":"desktop/src/MicBridge.Core/Control/CableSessionMonitor.cs","reason":"核实非本进程 Active 判断及端点缺失恢复"}
+{"file":"desktop/tests/MicBridge.Core.Tests/AutoCapturePolicyTests.cs","reason":"自动启动、去抖、停止时限和手动覆盖回归"}
+{"file":"desktop/tests/MicBridge.Core.Tests/AutoCaptureControllerTests.cs","reason":"自动采集集成、失败后重试与认证连接保留回归"}
+{"file":"desktop/tests/MicBridge.Core.Tests/DeviceTrustTests.cs","reason":"首次审批、拒绝、双向认证、重连及忘记回归"}
+{"file":"desktop/tests/MicBridge.Core.Tests/DeviceTrustStoreTests.cs","reason":"Windows 信任存储回归；不得使用用户真实信任记录"}
+{"file":"android/app/src/main/kotlin/io/github/lyyqwq/micbridge/audio/ControlClient.kt","reason":"检查失败连接可重试与已记住设备认证路径"}
+{"file":"android/app/src/main/kotlin/io/github/lyyqwq/micbridge/trust/DeviceTrustStore.kt","reason":"检查 Keystore 持久化失败与忘记清理"}
+{"file":"android/protocol-check/VerifyServerProof.kt","reason":"Android 服务端证明验证回归"}
+{"file":"android/protocol-check/VerifyCandidateFailure.kt","reason":"候选连接失败策略回归"}
+{"file":"android/protocol-check/verify.ps1","reason":"运行 Kotlin 协议与认证检查入口"}
+{"file":"test/widget_test.dart","reason":"Flutter 配对、忘记与手动操作界面回归入口"}
+{"file":"README.md","reason":"核对产品配对与自动采集说明，检查移除的快捷键文案"}

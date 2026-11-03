@@ -1,0 +1,2 @@
+{"file":".trellis/spec/backend/error-handling.md","reason":"Quality checks must verify authentication failure, route cleanup, bounded protocol handling, discovery fallback, and state transitions."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Quality checks must verify Chinese status-first UI, disabled-action reasons, manual fallback, and authoritative state rendering."}

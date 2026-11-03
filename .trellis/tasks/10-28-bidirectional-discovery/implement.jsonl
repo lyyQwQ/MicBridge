@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Preserve frame validation, cleanup, mDNS and transport fallback while adding symmetric endpoints"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Keep typed discovery and connection state out of Flutter/Avalonia widgets"}
+{"file": "protocol/README.md", "reason": "Shared TXT, HELLO, TCP/UDP and simultaneous-connection contract"}

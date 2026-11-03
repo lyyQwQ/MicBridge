@@ -1,0 +1,2 @@
+{"file":".trellis/spec/backend/error-handling.md","reason":"Defines protocol, cleanup, discovery, state, and error-handling invariants for the .NET/Android audio bridge."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Defines authoritative UI state, command enablement, discovery fallback, and Flutter/Avalonia boundaries."}
