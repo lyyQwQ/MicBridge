@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
+import 'audio_settings_sheet.dart';
 import 'dashboard_widgets.dart';
 import 'platform_bridge.dart';
 import 'window_attention.dart';
@@ -398,6 +399,18 @@ class _VoiceDashboardState extends State<VoiceDashboard> {
   Future<void> _start() => _run(_platform.start);
   Future<void> _stop() => _run(_platform.stop);
 
+  Future<void> _openAudioSettings(MicAudioSettingsPlatform settings) => _run(
+    () => showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (_) => AudioSettingsSheet(
+        load: settings.audioSettings,
+        save: settings.saveAudioSettings,
+      ),
+    ),
+  );
+
   void _selectComputer(ComputerEndpoint computer) {
     setState(() {
       _selectedComputer = computer;
@@ -546,6 +559,18 @@ class _VoiceDashboardState extends State<VoiceDashboard> {
                 onSelect: _busy
                     ? null
                     : (device) => unawaited(_selectInput(device)),
+              ),
+            if (_platform case final MicAudioSettingsPlatform settings
+                when _isAndroid)
+              ListTile(
+                key: const ValueKey('audioSettingsEntry'),
+                leading: const Icon(Icons.tune_rounded),
+                title: const Text('麦克风设置'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                enabled: !_busy,
+                onTap: _busy
+                    ? null
+                    : () => unawaited(_openAudioSettings(settings)),
               ),
             const Divider(height: 1),
             ManualSection(

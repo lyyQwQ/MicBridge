@@ -11,6 +11,8 @@ import android.widget.Toast
 import io.github.lyyqwq.micbridge.trust.DeviceTrustStore
 import io.github.lyyqwq.micbridge.audio.AudioStateBus
 import io.github.lyyqwq.micbridge.audio.BluetoothRouteManager
+import io.github.lyyqwq.micbridge.audio.MicAudioSettings
+import io.github.lyyqwq.micbridge.audio.MicAudioSettingsStore
 import io.github.lyyqwq.micbridge.audio.MicrophoneService
 import io.github.lyyqwq.micbridge.discovery.DiscoveryBus
 import io.github.lyyqwq.micbridge.discovery.LanDiscovery
@@ -23,6 +25,7 @@ class MainActivity : FlutterActivity() {
     private val trust by lazy { DeviceTrustStore.get(this) }
     private var foreground = false
     private val routeManager by lazy(LazyThreadSafetyMode.NONE) { BluetoothRouteManager(this) }
+    private val audioSettings by lazy(LazyThreadSafetyMode.NONE) { MicAudioSettingsStore.get(this) }
     private val discovery by lazy(LazyThreadSafetyMode.NONE) {
         LanDiscovery(this, { endpoints ->
             runOnUiThread { discoverySink?.success(endpoints.map(::computerMap)) }
@@ -90,6 +93,15 @@ class MainActivity : FlutterActivity() {
                 "start" -> { sendServiceAction(MicrophoneService.ACTION_START_CAPTURE); result.success(null) }
                 "stop" -> { sendServiceAction(MicrophoneService.ACTION_STOP_CAPTURE); result.success(null) }
                 "status" -> result.success(snapshotMap(AudioStateBus.current()))
+                "getAudioSettings" -> {
+                    if (call.arguments != null) result.error("settings_invalid", "音频设置参数无效", null)
+                    else audioSettings.read { settingsResult(result, it, "settings_read_failed") }
+                }
+                "setAudioSettings" -> {
+                    val next = MicAudioSettings.fromWire(call.arguments)
+                    if (next == null) result.error("settings_invalid", "音频设置参数无效", null)
+                    else audioSettings.write(next) { settingsResult(result, it, "settings_persist_failed") }
+                }
                 else -> result.notImplemented()
             }
         }
@@ -155,6 +167,13 @@ class MainActivity : FlutterActivity() {
     private fun sendServiceAction(action: String) {
         runCatching { startService(Intent(this, MicrophoneService::class.java).setAction(action)) }
             .onFailure { Toast.makeText(this, it.message ?: "服务尚未连接", Toast.LENGTH_SHORT).show() }
+    }
+
+    /** 设置读写在后台线程完成，结果回到主线程；只有确认成功才回报 success。 */
+    private fun settingsResult(result: MethodChannel.Result, outcome: Result<Map<String, Any?>>, fallbackCode: String) = runOnUiThread {
+        outcome.onSuccess(result::success).onFailure {
+            result.error((it as? MicAudioSettingsStore.SettingsException)?.code ?: fallbackCode, it.message, null)
+        }
     }
 
     private fun localDeviceId(): String? = runCatching { trust.installationId() }.getOrNull()

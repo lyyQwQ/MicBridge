@@ -101,3 +101,42 @@ Treating a discovery announcement as authenticated or letting a discovery failur
 #### Correct
 
 Validate the bounded discovery payload, use it only as a TCP candidate, require HELLO, and keep manual TCP fallback available.
+
+## Scenario: Android 麦克风设置与会话生命周期
+
+### Scope / Trigger
+
+Android 全局增益和 NS/AEC/AGC 偏好跨进程保存，每次采集独立应用；通道契约见 [state-management.md](../frontend/state-management.md#scenario-android-音频设置通道)。
+
+### Signatures
+
+`MicAudioSettingsStore.snapshot(): MicAudioSettings` 返回已确认的不可变快照；`read(callback)` / `write(next, callback)` 在单线程执行器执行，回调由 Activity 转回主线程。
+
+### Contracts
+
+- 独立 SharedPreferences `micbridge_audio_settings` 保存 `gainDb`（整数 0–20，默认 0）及 `ns/aec/agc`（可空布尔值）；null 移除对应键，不保存系统读回状态。与输入选择、信任存储隔离，停止、切换输入或忘记设备不清除这些偏好。
+- 后台串行 `commit` 成功才发布完整快照；失败尽力恢复旧值，即使恢复也失败，进程内仍保留已确认快照。加载时按键校验，损坏键单独回退默认。
+- START 只取一次快照，增益系数只计算一次；采集中保存不重启、不改变当前会话。PCM16 little-endian 发送前原地增益，先饱和再转型；0 dB 保持字节不变。
+- 效果绑定当前 `AudioRecord.audioSessionId`，创建成功立即归入会话。null 偏好不调用 `setEnabled`；显式偏好遇到明确无控制权时跳过。SDK 状态仅用于诊断，不代表实际听感。
+- `cleanupLocked` 统一释放效果、recorder 和路由；旧 readLoop 只可清理自己的 recorder，不能影响新会话。
+
+### Validation & Error Matrix
+
+| 条件 | 行为 |
+| --- | --- |
+| 能力查询异常 | `settings_read_failed`，写入前终止 |
+| commit 失败 | `settings_persist_failed`，不发布失败的新值 |
+| create 返回 null 或效果操作异常 | 单项记录诊断，基础采集和其他效果继续 |
+| 单个 release 异常 | 继续释放其余句柄；重复释放安全 |
+
+### Good / Base / Bad Cases
+
+Good：采集中保存 20 dB，仅下次 START 生效。Base：0 dB、三个 null，保留系统初始效果状态。Bad：保存及恢复均失败，仍读取旧确认快照。
+
+### Tests Required
+
+`VerifyAudioSettings.kt` 断言增益边界、字节序、有效 count、保存失败与恢复失败、null 不设置效果、操作及释放异常隔离；recorder 竞争和实际路由效果须单独验证，纯逻辑测试不能替代真机证据。
+
+### Wrong vs Correct
+
+错误：`commit` 失败后从 SharedPreferences 内存重新取采集值，或每个音频块重读设置。正确：仅成功提交发布快照，START 固定该快照，统一清理会话资源。

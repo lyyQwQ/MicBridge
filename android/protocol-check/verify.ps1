@@ -31,11 +31,14 @@ $candidatePolicy = Join-Path $PSScriptRoot '../app/src/main/kotlin/io/github/lyy
 $candidateChecks = Join-Path $PSScriptRoot 'VerifyCandidateFailure.kt'
 $discoveryWorker = Join-Path $PSScriptRoot '../app/src/main/kotlin/io/github/lyyqwq/micbridge/discovery/DiscoveryWorker.kt'
 $discoveryWorkerChecks = Join-Path $PSScriptRoot 'VerifyDiscoveryWorker.kt'
+$audioRoot = Join-Path $PSScriptRoot '../app/src/main/kotlin/io/github/lyyqwq/micbridge/audio'
+$audioSources = @('MicAudioSettings.kt', 'PcmGain.kt', 'PreprocessEffects.kt') | ForEach-Object { Join-Path $audioRoot $_ }
+$audioChecks = Join-Path $PSScriptRoot 'VerifyAudioSettings.kt'
 $output = Join-Path $PSScriptRoot '../build/protocol-check'
 New-Item -ItemType Directory -Path $output -Force | Out-Null
 $compileClasspath = @($stdlib, $annotations) -join [IO.Path]::PathSeparator
 & $JavaExecutable '-cp' $compilerClasspath 'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler' `
-    '-no-stdlib' '-no-reflect' '-jvm-target' '17' '-classpath' $compileClasspath '-d' $output $source $checks $discovery $discoveryLimits $discoveryChecks $candidatePolicy $candidateChecks $discoveryWorker $discoveryWorkerChecks
+    '-no-stdlib' '-no-reflect' '-jvm-target' '17' '-classpath' $compileClasspath '-d' $output $source $checks $discovery $discoveryLimits $discoveryChecks $candidatePolicy $candidateChecks $discoveryWorker $discoveryWorkerChecks @audioSources $audioChecks
 if ($LASTEXITCODE -ne 0) { throw "Protocol check compilation failed: $LASTEXITCODE" }
 $runtimeClasspath = @($output, $stdlib) -join [IO.Path]::PathSeparator
 & $JavaExecutable '-cp' $runtimeClasspath 'VerifyServerProofKt'
@@ -46,3 +49,5 @@ if ($LASTEXITCODE -ne 0) { throw "Discovery verification failed: $LASTEXITCODE" 
 if ($LASTEXITCODE -ne 0) { throw "Candidate failure verification failed: $LASTEXITCODE" }
 & $JavaExecutable '-cp' $runtimeClasspath 'VerifyDiscoveryWorkerKt'
 if ($LASTEXITCODE -ne 0) { throw "Discovery worker verification failed: $LASTEXITCODE" }
+& $JavaExecutable '-cp' $runtimeClasspath 'VerifyAudioSettingsKt'
+if ($LASTEXITCODE -ne 0) { throw "Audio settings verification failed: $LASTEXITCODE" }

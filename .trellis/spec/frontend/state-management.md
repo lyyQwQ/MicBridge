@@ -101,3 +101,38 @@ Widget tests cover system selection, fallback explanation, native selection rest
 
 Wrong: persist only Android's transient device ID or clear an unavailable preference in Flutter. Correct: persist native device identity and render the native effective selection, retaining explicit intent while temporarily following the system.
 
+## Scenario: Android 音频设置通道
+
+### Scope / Trigger
+
+音频设置是 Android 可选能力 `AudioSettingsPlatform`，复用 `micbridge/platform`，不扩展 `MicPlatform`、Windows IPC 或状态 EventChannel。存储与采集生命周期见 [error-handling.md](../backend/error-handling.md#scenario-android-麦克风设置与会话生命周期)。
+
+### Signatures
+
+- `getAudioSettings(null)`：无参数读取，不创建 AudioRecord、不启动采集。
+- `setAudioSettings({gainDb, ns, aec, agc})`：完整替换偏好；两者均返回 `{preferences: {gainDb, ns, aec, agc}, available: {ns, aec, agc}}`。
+
+### Contracts
+
+`gainDb` 必须为 0–20 整数；三个效果必须为 null / true / false，四个键齐全且不允许额外键。`available` 的三个值为布尔值，仅代表 SDK 能力。设置面板固定显示「系统默认 / 开 / 关」三段单选，分别写入 null / true / false；不可用或保存中禁用，串行提交、失败恢复已确认值，销毁后忽略晚到回应。提示“下次开始采集时生效”；偏好不等于实际 enabled 状态。
+
+### Validation & Error Matrix
+
+| 条件 | 结果 |
+| --- | --- |
+| get 参数非 null；set 缺键、多键、类型或范围错误 | `settings_invalid` |
+| 能力查询或读取异常 | `settings_read_failed` |
+| 持久化失败 | `settings_persist_failed`，保留已确认值 |
+| 响应结构或类型不符 | Dart 拒绝解码，不静默替换成默认值 |
+
+### Good / Base / Bad Cases
+
+Good：`{gainDb: 6, ns: true, aec: null, agc: false}` 完整保存。Base：0 dB、三个 null，选中系统默认。Bad：缺少 `ns` 或传入 `gainDb: 6.0`，拒绝请求。
+
+### Tests Required
+
+`test/audio_settings_test.dart` 断言请求与响应形状、非法值拒绝、三段写入 null/true/false、不可用禁用、失败回退、防重入、晚到回应及销毁保护；小屏明暗主题与放大字号下不溢出。
+
+### Wrong vs Correct
+
+错误：把 `available=true` 显示为“效果已开启”，或将 null 转成 false。正确：能力只控制可用性，三态忠实呈现保存的偏好。

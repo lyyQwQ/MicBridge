@@ -137,6 +137,88 @@ abstract interface class MicPlatform {
   Future<void> dispose();
 }
 
+/// Android 系统预处理效果；name 即通道键名。
+enum MicAudioEffect {
+  ns('降噪（NS）'),
+  aec('回声消除（AEC）'),
+  agc('自动增益（AGC）');
+
+  const MicAudioEffect(this.label);
+  final String label;
+}
+
+/// 全局麦克风设置：effects 缺键表示跟随系统；available 只表示系统 API 支持，不代表实际开启。
+class MicAudioSettings {
+  const MicAudioSettings({
+    this.gainDb = 0,
+    this.effects = const {},
+    this.available = const {},
+  });
+
+  static const maxGainDb = 20;
+  final int gainDb;
+  final Map<MicAudioEffect, bool> effects;
+  final Set<MicAudioEffect> available;
+
+  MicAudioSettings withGain(int value) =>
+      MicAudioSettings(gainDb: value, effects: effects, available: available);
+
+  /// value 为 null 时恢复系统默认。
+  MicAudioSettings withEffect(MicAudioEffect effect, bool? value) =>
+      MicAudioSettings(
+        gainDb: gainDb,
+        effects: {
+          for (final entry in effects.entries)
+            if (entry.key != effect) entry.key: entry.value,
+          effect: ?value,
+        },
+        available: available,
+      );
+
+  /// 完整偏好对象，四个键都存在；null 表示跟随系统。
+  Map<String, Object?> toPreferences() => {
+    'gainDb': gainDb,
+    for (final effect in MicAudioEffect.values) effect.name: effects[effect],
+  };
+
+  /// 唯一解码处：畸形回应作为错误，不猜测默认值。
+  static MicAudioSettings fromResponse(Object? raw) {
+    const malformed = FormatException('settings_malformed');
+    if (raw case {
+      'preferences': final Map preferences,
+      'available': final Map available,
+    }) {
+      final gainDb = preferences['gainDb'];
+      if (gainDb is! int || gainDb < 0 || gainDb > maxGainDb) throw malformed;
+      final effects = <MicAudioEffect, bool>{};
+      final supported = <MicAudioEffect>{};
+      for (final effect in MicAudioEffect.values) {
+        final preference = preferences[effect.name];
+        final support = available[effect.name];
+        if (!preferences.containsKey(effect.name) ||
+            (preference != null && preference is! bool) ||
+            support is! bool) {
+          throw malformed;
+        }
+        if (preference is bool) effects[effect] = preference;
+        if (support) supported.add(effect);
+      }
+      return MicAudioSettings(
+        gainDb: gainDb,
+        effects: Map.unmodifiable(effects),
+        available: Set.unmodifiable(supported),
+      );
+    }
+    throw malformed;
+  }
+}
+
+/// 可选能力：只有 Android 适配器实现，Windows 不提供设置入口。
+abstract interface class MicAudioSettingsPlatform {
+  Future<MicAudioSettings> audioSettings();
+  Future<MicAudioSettings> saveAudioSettings(MicAudioSettings settings);
+}
+
 class InputDevice {
   const InputDevice({
     required this.id,
@@ -184,6 +266,9 @@ typedef WindowsProcessStarter = Future<Process> Function(
 MicPlatform createWindowsMicPlatformForTesting({
   required WindowsProcessStarter startProcess,
 }) => _WindowsMicPlatform(startProcess: startProcess);
+
+@visibleForTesting
+MicPlatform createAndroidMicPlatformForTesting() => _AndroidMicPlatform();
 
 class _WindowsMicPlatform implements MicPlatform {
   _WindowsMicPlatform({WindowsProcessStarter? startProcess})
@@ -459,7 +544,7 @@ class _WindowsMicPlatform implements MicPlatform {
   }
 }
 
-class _AndroidMicPlatform implements MicPlatform {
+class _AndroidMicPlatform implements MicPlatform, MicAudioSettingsPlatform {
   static const _methods = MethodChannel('micbridge/platform');
   static const _events = EventChannel('micbridge/state');
   static const _discoveryEvents = EventChannel('micbridge/discovery');
@@ -552,4 +637,19 @@ class _AndroidMicPlatform implements MicPlatform {
 
   @override
   Future<void> dispose() async {}
+
+  @override
+  Future<MicAudioSettings> audioSettings() async =>
+      MicAudioSettings.fromResponse(
+        await _methods.invokeMethod<Object?>('getAudioSettings'),
+      );
+
+  @override
+  Future<MicAudioSettings> saveAudioSettings(MicAudioSettings settings) async =>
+      MicAudioSettings.fromResponse(
+        await _methods.invokeMethod<Object?>(
+          'setAudioSettings',
+          settings.toPreferences(),
+        ),
+      );
 }

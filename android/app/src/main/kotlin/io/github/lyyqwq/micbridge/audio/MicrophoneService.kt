@@ -42,7 +42,7 @@ class MicrophoneService : Service() {
     override fun onCreate() {
         super.onCreate()
         trust = DeviceTrustStore.get(this)
-        capture = AudioCaptureController(BluetoothRouteManager(this))
+        capture = AudioCaptureController(BluetoothRouteManager(this), MicAudioSettingsStore.get(this))
         client = ControlClient(capture, trust) { connected, retryAllowed ->
             main.post {
                 if (!destroyed && connected == client.isConnected() && (connected || !client.isBusy())) {
